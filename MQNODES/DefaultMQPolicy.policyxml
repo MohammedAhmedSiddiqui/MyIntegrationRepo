@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<policies>
+  <policy policyType="MQEndpoint" policyName="DefaultMQPolicy" policyTemplate="MQEndpoint">
+    <connection>SERVER</connection>
+    <destinationQueueManagerName>TEST_QM</destinationQueueManagerName>
+    <queueManagerHostname>DESKTOP-BQ6RBTT</queueManagerHostname>
+    <listenerPortNumber>1414</listenerPortNumber>
+    <channelName>SYSTEM.ADMIN.SVRCONN</channelName>
+    <securityIdentity></securityIdentity>
+    <useSSL>false</useSSL>
+    <SSLPeerName></SSLPeerName>
+    <SSLCipherSpec></SSLCipherSpec>
+  </policy>
+</policies>

@@ -1,0 +1,61 @@
+BROKER SCHEMA com.ibm.ahmed
+
+
+CREATE COMPUTE MODULE ExceptionHandling_HandleException
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyMessageHeaders();
+		IF FIELDTYPE(InputRoot.MQMD.[1]) IS NOT NULL THEN
+			CALL CopyEntireMessage();
+			PROPAGATE TO TERMINAL 1;
+		END IF;	
+		
+		DECLARE rEnv 				REFERENCE TO Environment.Variables;
+		DECLARE inExceptionListPtr 	REFERENCE TO InputExceptionList.*[1];
+		
+		SET rEnv.ErrorResponse.ExceptionType	= FIELDNAME(inExceptionListPtr);
+		SET rEnv.ErrorResponse.Text				= 'Exception Occured : ';
+		SET rEnv.ErrorResponse.Number 			= COALESCE(inExceptionListPtr.Number,'');
+		
+		WHILE LASTMOVE(inExceptionListPtr) DO
+			
+			IF FIELDNAME(inExceptionListPtr) = 'Insert' THEN
+				MOVE inExceptionListPtr PARENT;
+				SET rEnv.ErrorResponse.ExceptionType	= FIELDNAME(inExceptionListPtr);
+				FOR eachInsert AS inExceptionListPtr.Insert[] DO
+					SET rEnv.ErrorResponse.Text				= COALESCE(rEnv.ErrorResponse.Text,'') || eachInsert.Text;
+				END FOR;
+				MOVE inExceptionListPtr LASTCHILD;	
+			ELSEIF inExceptionListPtr.Text IS NOT NULL OR inExceptionListPtr.Text <> '' THEN
+				SET rEnv.ErrorResponse.Text 			= COALESCE(rEnv.ErrorResponse.Text,'') || ' ' ||inExceptionListPtr.Text;
+			END IF;
+				
+			MOVE inExceptionListPtr LASTCHILD;	
+			
+		END WHILE;	
+		
+		SET OutputRoot.XMLNSC.ErrorResponse.Status 			= 500;
+		SET OutputRoot.XMLNSC.ErrorResponse.ExceptionType 	= rEnv.ErrorResponse.ExceptionType;
+		SET OutputRoot.XMLNSC.ErrorResponse.Number 			= rEnv.ErrorResponse.Number;
+		SET OutputRoot.XMLNSC.ErrorResponse.Text 			= rEnv.ErrorResponse.Text;
+		
+		IF CONTAINS(InputRoot.Properties.ReplyProtocol, 'SOAP') THEN
+			PROPAGATE TO TERMINAL 2;
+		END IF;	
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;
